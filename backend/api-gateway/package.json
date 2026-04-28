@@ -1,0 +1,17 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "cors": "^2.8.5",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "http-proxy-middleware": "^3.0.5",
+    "aws-jwt-verify": "^5.1.1"
+  }
+}

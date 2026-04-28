@@ -1,0 +1,16 @@
+{
+  "name": "live-session-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "cors": "^2.8.5",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "socket.io": "^4.8.3"
+  }
+}
