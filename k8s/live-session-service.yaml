@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-session-service
+  namespace: hiresphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: live-session-service
+  template:
+    metadata:
+      labels:
+        app: live-session-service
+    spec:
+      containers:
+        - name: live-session-service
+          image: YOUR_ECR/live-session-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4006
+          env:
+            - name: PORT
+              value: "4006"
+          envFrom:
+            - configMapRef:
+                name: hiresphere-config
+            - secretRef:
+                name: hiresphere-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: live-session-service
+  namespace: hiresphere
+spec:
+  selector:
+    app: live-session-service
+  ports:
+    - port: 4006
+      targetPort: 4006

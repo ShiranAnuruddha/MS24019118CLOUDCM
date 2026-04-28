@@ -1,0 +1,97 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: hiresphere-postgres
+    environment:
+      POSTGRES_DB: hiresphere
+      POSTGRES_USER: hiresphere
+      POSTGRES_PASSWORD: hiresphere123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  api-gateway:
+    build: ./backend/api-gateway
+    container_name: hiresphere-api-gateway
+    env_file: .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - profile-service
+      - booking-service
+      - submission-service
+      - messaging-service
+      - evaluation-service
+      - live-session-service
+
+  profile-service:
+    build: ./backend/profile-service
+    container_name: hiresphere-profile-service
+    env_file: .env
+    environment:
+      PORT: 4001
+    depends_on:
+      - postgres
+
+  booking-service:
+    build: ./backend/booking-service
+    container_name: hiresphere-booking-service
+    env_file: .env
+    environment:
+      PORT: 4002
+    depends_on:
+      - postgres
+      - profile-service
+
+  submission-service:
+    build: ./backend/submission-service
+    container_name: hiresphere-submission-service
+    env_file: .env
+    environment:
+      PORT: 4003
+    depends_on:
+      - postgres
+
+  messaging-service:
+    build: ./backend/messaging-service
+    container_name: hiresphere-messaging-service
+    env_file: .env
+    environment:
+      PORT: 4004
+    depends_on:
+      - postgres
+
+  evaluation-service:
+    build: ./backend/evaluation-service
+    container_name: hiresphere-evaluation-service
+    env_file: .env
+    environment:
+      PORT: 4005
+    depends_on:
+      - postgres
+
+  live-session-service:
+    build: ./backend/live-session-service
+    container_name: hiresphere-live-session-service
+    env_file: .env
+    environment:
+      PORT: 4006
+
+  frontend:
+    build: ./frontend
+    container_name: hiresphere-frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+      VITE_AWS_REGION: ${VITE_AWS_REGION}
+      VITE_COGNITO_USER_POOL_ID: ${VITE_COGNITO_USER_POOL_ID}
+      VITE_COGNITO_CLIENT_ID: ${VITE_COGNITO_CLIENT_ID}
+      VITE_COGNITO_LOGIN_WITH_EMAIL: ${VITE_COGNITO_LOGIN_WITH_EMAIL}
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+
+volumes:
+  pgdata:

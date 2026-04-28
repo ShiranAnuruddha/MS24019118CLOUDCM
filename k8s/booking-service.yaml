@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: hiresphere
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - name: booking-service
+          image: YOUR_ECR/booking-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4002
+          env:
+            - name: PORT
+              value: "4002"
+          envFrom:
+            - configMapRef:
+                name: hiresphere-config
+            - secretRef:
+                name: hiresphere-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: hiresphere
+spec:
+  selector:
+    app: booking-service
+  ports:
+    - port: 4002
+      targetPort: 4002
