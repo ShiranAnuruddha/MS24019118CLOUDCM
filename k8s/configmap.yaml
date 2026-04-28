@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hiresphere-config
+  namespace: hiresphere
+data:
+  NODE_ENV: "production"
+  AWS_REGION: "us-east-1"
+  PROFILE_SERVICE_URL: "http://profile-service:4001"
+  BOOKING_SERVICE_URL: "http://booking-service:4002"
+  SUBMISSION_SERVICE_URL: "http://submission-service:4003"
+  MESSAGING_SERVICE_URL: "http://messaging-service:4004"
+  EVALUATION_SERVICE_URL: "http://evaluation-service:4005"
+  LIVE_SESSION_SERVICE_URL: "http://live-session-service:4006"
+  VITE_API_BASE_URL: "http://api-gateway"
