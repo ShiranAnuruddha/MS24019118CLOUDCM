@@ -26,7 +26,7 @@ function proxy(path, target, extra = {}) {
     target,
     changeOrigin: true,
     ws: extra.ws || false,
-    pathRewrite: extra.pathRewrite || undefined,
+    pathRewrite: extra.pathRewrite || ((path, req) => req.originalUrl),
     on: {
       proxyReq: (proxyReq, req) => {
         if (req.user) {

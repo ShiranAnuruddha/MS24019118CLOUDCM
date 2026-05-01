@@ -7,6 +7,7 @@ export default function Interviewers({ user, interviewers, onSearch, onBook, onS
     experienceLevel: "",
     minRating: 0,
   });
+
   const [profileForm, setProfileForm] = useState({
     full_name: profile?.full_name || user.name,
     profile_type: profile?.profile_type || user.role,
@@ -17,18 +18,26 @@ export default function Interviewers({ user, interviewers, onSearch, onBook, onS
     specialization_badges: (profile?.specialization_badges || []).join(", "),
     hourly_rate: profile?.hourly_rate || 0,
   });
+
   const [slotForm, setSlotForm] = useState({ slot_start: "", slot_end: "" });
 
   function updateProfile(key, value) {
     setProfileForm((current) => ({ ...current, [key]: value }));
   }
 
-  function submitProfile(event) {
+  async function submitProfile(event) {
     event.preventDefault();
-    onSaveProfile({
+
+    await onSaveProfile({
       ...profileForm,
-      interview_types: profileForm.interview_types.split(",").map((s) => s.trim()).filter(Boolean),
-      specialization_badges: profileForm.specialization_badges.split(",").map((s) => s.trim()).filter(Boolean),
+      interview_types: profileForm.interview_types
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      specialization_badges: profileForm.specialization_badges
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
       hourly_rate: Number(profileForm.hourly_rate || 0),
     });
   }
