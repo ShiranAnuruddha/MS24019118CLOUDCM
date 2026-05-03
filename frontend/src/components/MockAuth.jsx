@@ -38,18 +38,18 @@ export default function MockAuth({ onAuthenticated }) {
     <div className="auth-shell">
       <div className="card auth-card">
         <h1>HireSphere</h1>
-        <p>Mock local sign-in for development.</p>
+        <p>Interviwer / Candidate Sign-in Page</p>
 
         <div className="button-row" style={{ marginBottom: "1rem" }}>
           <button type="button" onClick={() => loginAs(INTERVIEWER_DEMO)}>
-            Login as Interviewer Demo
+            Login as Interviewer
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => loginAs(CANDIDATE_DEMO)}
           >
-            Login as Candidate Demo
+            Login as Candidate
           </button>
         </div>
 
