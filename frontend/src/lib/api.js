@@ -11,16 +11,21 @@ export async function api(path, options = {}) {
   }
 
   if (auth.mode === "mock" && auth.user) {
-    headers.set("x-mock-user-id", auth.user.id);
-    headers.set("x-mock-user-email", auth.user.email);
-    headers.set("x-mock-user-role", auth.user.role);
-    headers.set("x-mock-user-name", auth.user.name);
+    if (auth.user.id) headers.set("x-mock-user-id", auth.user.id);
+    if (auth.user.email) headers.set("x-mock-user-email", auth.user.email);
+    if (auth.user.role) headers.set("x-mock-user-role", auth.user.role);
+    if (auth.user.name) headers.set("x-mock-user-name", auth.user.name);
   }
 
   const isForm = options.body instanceof FormData;
-  if (!isForm && !headers.has("Content-Type")) {
+  if (!isForm && options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
+
+  console.log("API request:", path, {
+    method: options.method || "GET",
+    auth,
+  });
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -41,8 +46,7 @@ export async function api(path, options = {}) {
 }
 
 export function getSocketUrl() {
-  const base = API_BASE_URL.replace(/\/$/, "");
-  return base;
+  return API_BASE_URL.replace(/\/$/, "");
 }
 
 export function getSocketPath() {

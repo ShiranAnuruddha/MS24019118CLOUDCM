@@ -31,21 +31,49 @@ function AppInner() {
   }
 
   async function loadAll() {
+    let meProfile = null;
+
     try {
-      const [meProfile, interviewerList, myBookings, mySubmissions, myReports] = await Promise.all([
-        api("/profiles/me"),
-        api("/profiles/interviewers"),
-        api("/bookings/mine"),
-        api("/submissions/mine"),
-        api("/evaluations/reports/mine"),
-      ]);
-
+      meProfile = await api("/profiles/me");
       setProfile(meProfile);
-      setInterviewers(interviewerList);
-      setBookings(myBookings);
-      setSubmissions(mySubmissions);
-      setReports(myReports);
+    } catch (error) {
+      console.error("Profile load failed:", error);
+      setProfile(null);
+    }
 
+    try {
+      const interviewerList = await api("/profiles/interviewers");
+      setInterviewers(interviewerList);
+    } catch (error) {
+      console.error("Interviewers load failed:", error);
+      setInterviewers([]);
+    }
+
+    try {
+      const myBookings = await api("/bookings/mine");
+      setBookings(myBookings);
+    } catch (error) {
+      console.error("Bookings load failed:", error);
+      setBookings([]);
+    }
+
+    try {
+      const mySubmissions = await api("/submissions/mine");
+      setSubmissions(mySubmissions);
+    } catch (error) {
+      console.error("Submissions load failed:", error);
+      setSubmissions([]);
+    }
+
+    try {
+      const myReports = await api("/evaluations/reports/mine");
+      setReports(myReports);
+    } catch (error) {
+      console.error("Reports load failed:", error);
+      setReports([]);
+    }
+
+    try {
       if ((meProfile?.profile_type || user?.role) === "interviewer") {
         const slots = await api("/profiles/interviewer/me/slots");
         setMySlots(slots);
@@ -53,7 +81,8 @@ function AppInner() {
         setMySlots([]);
       }
     } catch (error) {
-      setNotice(error.message);
+      console.error("Slots load failed:", error);
+      setMySlots([]);
     }
   }
 
@@ -68,17 +97,29 @@ function AppInner() {
   }, [user]);
 
   async function handleSearch(filters) {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== "" && value !== null && value !== undefined) params.set(key, value);
-    });
-    const data = await api(`/profiles/interviewers?${params.toString()}`);
-    setInterviewers(data);
+    try {
+      const params = new URLSearchParams();
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+          params.set(key, value);
+        }
+      });
+
+      const data = await api(`/profiles/interviewers?${params.toString()}`);
+      setInterviewers(data);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setNotice(error.message);
+    }
   }
 
   async function handleBook(payload) {
     try {
-      await api("/bookings", { method: "POST", body: JSON.stringify(payload) });
+      await api("/bookings", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
       setNotice("Booking created.");
       await loadAll();
       setTab("bookings");
@@ -89,17 +130,30 @@ function AppInner() {
 
   async function handleSaveProfile(payload) {
     try {
-      await api("/profiles/me/upsert", { method: "POST", body: JSON.stringify(payload) });
-      setNotice("Profile saved.");
+      console.log("Saving profile payload:", payload);
+
+      const saved = await api("/profiles/me/upsert", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      console.log("Saved profile response:", saved);
+
+      setProfile(saved);
+      setNotice("Profile saved successfully.");
       await loadAll();
     } catch (error) {
-      setNotice(error.message);
+      console.error("Save profile failed:", error);
+      setNotice(`Save failed: ${error.message}`);
     }
   }
 
   async function handleAddSlot(payload) {
     try {
-      await api("/profiles/interviewer/slots", { method: "POST", body: JSON.stringify(payload) });
+      await api("/profiles/interviewer/slots", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
       setNotice("Slot added.");
       await loadAll();
     } catch (error) {
@@ -109,7 +163,9 @@ function AppInner() {
 
   async function handlePay(bookingId) {
     try {
-      await api(`/bookings/${bookingId}/pay`, { method: "POST" });
+      await api(`/bookings/${bookingId}/pay`, {
+        method: "POST",
+      });
       setNotice("Payment completed in mock gateway.");
       await loadAll();
     } catch (error) {
@@ -119,7 +175,10 @@ function AppInner() {
 
   async function handleUpdateStatus(bookingId, status) {
     try {
-      await api(`/bookings/${bookingId}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+      await api(`/bookings/${bookingId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
       setNotice(`Booking updated to ${status}.`);
       await loadAll();
     } catch (error) {
@@ -130,11 +189,17 @@ function AppInner() {
   async function handleSubmission(form) {
     try {
       const data = new FormData();
+
       if (form.bookingId) data.append("bookingId", form.bookingId);
       if (form.githubUrl) data.append("githubUrl", form.githubUrl);
       if (form.notes) data.append("notes", form.notes);
       if (form.file) data.append("file", form.file);
-      await api("/submissions", { method: "POST", body: data });
+
+      await api("/submissions", {
+        method: "POST",
+        body: data,
+      });
+
       setNotice("Submission uploaded.");
       await loadAll();
     } catch (error) {
@@ -157,6 +222,7 @@ function AppInner() {
 
   async function handleSelectBooking(bookingId) {
     setSelectedBookingId(bookingId);
+
     try {
       const data = await api(`/messages/threads/${bookingId}`);
       setThreads(data);
@@ -179,7 +245,10 @@ function AppInner() {
 
   async function handleCreateReport(payload) {
     try {
-      await api("/evaluations/reports", { method: "POST", body: JSON.stringify(payload) });
+      await api("/evaluations/reports", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
       setNotice("Evaluation report created.");
       await loadAll();
     } catch (error) {
@@ -198,12 +267,14 @@ function AppInner() {
     setThreads([]);
     setMySlots([]);
     setSelectedBookingId(null);
+    setNotice("");
   }
 
   const content = useMemo(() => {
     switch (tab) {
       case "dashboard":
         return <Dashboard profile={profile} bookings={bookings} reports={reports} />;
+
       case "interviewers":
         return (
           <Interviewers
@@ -217,6 +288,7 @@ function AppInner() {
             profile={profile}
           />
         );
+
       case "bookings":
         return (
           <Bookings
@@ -226,6 +298,7 @@ function AppInner() {
             onUpdateStatus={handleUpdateStatus}
           />
         );
+
       case "submissions":
         return (
           <Submissions
@@ -235,6 +308,7 @@ function AppInner() {
             user={user}
           />
         );
+
       case "messages":
         return (
           <Messages
@@ -245,6 +319,7 @@ function AppInner() {
             onSend={handleSendMessage}
           />
         );
+
       case "reports":
         return (
           <Reports
@@ -254,10 +329,22 @@ function AppInner() {
             onCreate={handleCreateReport}
           />
         );
+
       default:
         return null;
     }
-  }, [tab, user, profile, interviewers, bookings, submissions, reports, threads, selectedBookingId, mySlots]);
+  }, [
+    tab,
+    user,
+    profile,
+    interviewers,
+    bookings,
+    submissions,
+    reports,
+    threads,
+    selectedBookingId,
+    mySlots,
+  ]);
 
   if (!user) {
     return <MockAuth onAuthenticated={(mockUser) => setUser(mockUser)} />;
