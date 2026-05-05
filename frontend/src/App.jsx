@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Authenticator } from "@aws-amplify/ui-react";
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
 import { amplifyEnabled } from "./lib/amplify";
 import { api } from "./lib/api";
-import { getAuthContext, getMockUser, logout } from "./lib/auth";
-import MockAuth from "./components/MockAuth";
+import { getAuthContext, logout } from "./lib/auth";
+import AuthLanding from "./components/AuthLanding";
+import AuthLoginPage from "./components/AuthLoginPage";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Interviewers from "./pages/Interviewers";
@@ -12,9 +13,14 @@ import Submissions from "./pages/Submissions";
 import Messages from "./pages/Messages";
 import Reports from "./pages/Reports";
 
-function AppInner() {
-  const [tab, setTab] = useState("dashboard");
-  const [user, setUser] = useState(getMockUser());
+const VALID_TABS = ["dashboard", "interviewers", "bookings", "submissions", "messages", "reports"];
+
+function ProtectedRoleApp() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { role } = useParams();
+
+  const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [interviewers, setInterviewers] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -25,8 +31,24 @@ function AppInner() {
   const [mySlots, setMySlots] = useState([]);
   const [notice, setNotice] = useState("");
 
+  const currentTab = useMemo(() => {
+    const part = location.pathname.split("/")[2] || "dashboard";
+    return VALID_TABS.includes(part) ? part : "dashboard";
+  }, [location.pathname]);
+
   async function refreshUser() {
     const auth = await getAuthContext();
+
+    if (!auth.user) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (role && auth.user.role && auth.user.role !== role) {
+      navigate(`/${auth.user.role}/dashboard`, { replace: true });
+      return;
+    }
+
     setUser(auth.user);
   }
 
@@ -36,59 +58,48 @@ function AppInner() {
     try {
       meProfile = await api("/profiles/me");
       setProfile(meProfile);
-    } catch (error) {
-      console.error("Profile load failed:", error);
+    } catch {
       setProfile(null);
     }
 
     try {
-      const interviewerList = await api("/profiles/interviewers");
-      setInterviewers(interviewerList);
-    } catch (error) {
-      console.error("Interviewers load failed:", error);
+      setInterviewers(await api("/profiles/interviewers"));
+    } catch {
       setInterviewers([]);
     }
 
     try {
-      const myBookings = await api("/bookings/mine");
-      setBookings(myBookings);
-    } catch (error) {
-      console.error("Bookings load failed:", error);
+      setBookings(await api("/bookings/mine"));
+    } catch {
       setBookings([]);
     }
 
     try {
-      const mySubmissions = await api("/submissions/mine");
-      setSubmissions(mySubmissions);
-    } catch (error) {
-      console.error("Submissions load failed:", error);
+      setSubmissions(await api("/submissions/mine"));
+    } catch {
       setSubmissions([]);
     }
 
     try {
-      const myReports = await api("/evaluations/reports/mine");
-      setReports(myReports);
-    } catch (error) {
-      console.error("Reports load failed:", error);
+      setReports(await api("/evaluations/reports/mine"));
+    } catch {
       setReports([]);
     }
 
     try {
       if ((meProfile?.profile_type || user?.role) === "interviewer") {
-        const slots = await api("/profiles/interviewer/me/slots");
-        setMySlots(slots);
+        setMySlots(await api("/profiles/interviewer/me/slots"));
       } else {
         setMySlots([]);
       }
-    } catch (error) {
-      console.error("Slots load failed:", error);
+    } catch {
       setMySlots([]);
     }
   }
 
   useEffect(() => {
     refreshUser();
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     if (user) {
@@ -96,20 +107,21 @@ function AppInner() {
     }
   }, [user]);
 
+  function setCurrentTab(nextTab) {
+    if (!user?.role) return;
+    navigate(`/${user.role}/${nextTab}`);
+  }
+
   async function handleSearch(filters) {
     try {
       const params = new URLSearchParams();
-
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "" && value !== null && value !== undefined) {
           params.set(key, value);
         }
       });
-
-      const data = await api(`/profiles/interviewers?${params.toString()}`);
-      setInterviewers(data);
+      setInterviewers(await api(`/profiles/interviewers?${params.toString()}`));
     } catch (error) {
-      console.error("Search failed:", error);
       setNotice(error.message);
     }
   }
@@ -122,7 +134,7 @@ function AppInner() {
       });
       setNotice("Booking created.");
       await loadAll();
-      setTab("bookings");
+      navigate(`/${user.role}/bookings`);
     } catch (error) {
       setNotice(error.message);
     }
@@ -130,21 +142,16 @@ function AppInner() {
 
   async function handleSaveProfile(payload) {
     try {
-      console.log("Saving profile payload:", payload);
-
       const saved = await api("/profiles/me/upsert", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-
-      console.log("Saved profile response:", saved);
-
       setProfile(saved);
       setNotice("Profile saved successfully.");
       await loadAll();
     } catch (error) {
-      console.error("Save profile failed:", error);
       setNotice(`Save failed: ${error.message}`);
+      alert(`Save failed: ${error.message}`);
     }
   }
 
@@ -157,16 +164,15 @@ function AppInner() {
       setNotice("Slot added.");
       await loadAll();
     } catch (error) {
-      setNotice(error.message);
+      setNotice(`Add slot failed: ${error.message}`);
+      alert(`Add slot failed: ${error.message}`);
     }
   }
 
   async function handlePay(bookingId) {
     try {
-      await api(`/bookings/${bookingId}/pay`, {
-        method: "POST",
-      });
-      setNotice("Payment completed in mock gateway.");
+      await api(`/bookings/${bookingId}/pay`, { method: "POST" });
+      setNotice("Payment completed.");
       await loadAll();
     } catch (error) {
       setNotice(error.message);
@@ -189,7 +195,6 @@ function AppInner() {
   async function handleSubmission(form) {
     try {
       const data = new FormData();
-
       if (form.bookingId) data.append("bookingId", form.bookingId);
       if (form.githubUrl) data.append("githubUrl", form.githubUrl);
       if (form.notes) data.append("notes", form.notes);
@@ -222,10 +227,8 @@ function AppInner() {
 
   async function handleSelectBooking(bookingId) {
     setSelectedBookingId(bookingId);
-
     try {
-      const data = await api(`/messages/threads/${bookingId}`);
-      setThreads(data);
+      setThreads(await api(`/messages/threads/${bookingId}`));
     } catch (error) {
       setNotice(error.message);
     }
@@ -259,19 +262,11 @@ function AppInner() {
   async function handleLogout() {
     await logout();
     setUser(null);
-    setProfile(null);
-    setInterviewers([]);
-    setBookings([]);
-    setSubmissions([]);
-    setReports([]);
-    setThreads([]);
-    setMySlots([]);
-    setSelectedBookingId(null);
-    setNotice("");
+    navigate("/login", { replace: true });
   }
 
   const content = useMemo(() => {
-    switch (tab) {
+    switch (currentTab) {
       case "dashboard":
         return <Dashboard profile={profile} bookings={bookings} reports={reports} />;
 
@@ -331,10 +326,10 @@ function AppInner() {
         );
 
       default:
-        return null;
+        return <Dashboard profile={profile} bookings={bookings} reports={reports} />;
     }
   }, [
-    tab,
+    currentTab,
     user,
     profile,
     interviewers,
@@ -347,11 +342,11 @@ function AppInner() {
   ]);
 
   if (!user) {
-    return <MockAuth onAuthenticated={(mockUser) => setUser(mockUser)} />;
+    return <div style={{ padding: 24 }}>Checking session...</div>;
   }
 
   return (
-    <Layout user={user} currentTab={tab} setCurrentTab={setTab} onLogout={handleLogout}>
+    <Layout user={user} currentTab={currentTab} setCurrentTab={setCurrentTab} onLogout={handleLogout}>
       {notice && <div className="notice">{notice}</div>}
       {content}
     </Layout>
@@ -359,13 +354,19 @@ function AppInner() {
 }
 
 export default function App() {
-  if (amplifyEnabled) {
-    return (
-      <Authenticator>
-        <AppInner />
-      </Authenticator>
-    );
+  if (!amplifyEnabled) {
+    return <div style={{ padding: 24 }}>Cognito is not configured yet.</div>;
   }
 
-  return <AppInner />;
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<AuthLanding />} />
+      <Route path="/login/interviewer" element={<AuthLoginPage role="interviewer" />} />
+      <Route path="/login/candidate" element={<AuthLoginPage role="candidate" />} />
+      <Route path="/interviewer/:tab" element={<ProtectedRoleApp />} />
+      <Route path="/candidate/:tab" element={<ProtectedRoleApp />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
 }

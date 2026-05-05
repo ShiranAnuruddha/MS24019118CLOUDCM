@@ -1,36 +1,57 @@
-const MOCK_USER_KEY = "hiresphere_mock_user";
-
-export function getMockUser() {
-  try {
-    const raw = localStorage.getItem(MOCK_USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveMockUser(user) {
-  localStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
-}
+import { fetchAuthSession, getCurrentUser, signOut } from "aws-amplify/auth";
+import { amplifyEnabled } from "./amplify";
+import { getSelectedLoginRole, clearSelectedLoginRole } from "./loginRole";
 
 export async function getAuthContext() {
-  const mockUser = getMockUser();
-
-  if (mockUser) {
+  if (!amplifyEnabled) {
     return {
-      mode: "mock",
-      user: mockUser,
+      mode: "none",
+      user: null,
       token: null,
     };
   }
 
-  return {
-    mode: "mock",
-    user: null,
-    token: null,
-  };
+  try {
+    const [session, currentUser] = await Promise.all([
+      fetchAuthSession(),
+      getCurrentUser(),
+    ]);
+
+    const accessToken = session.tokens?.accessToken?.toString() || null;
+    const idClaims = session.tokens?.idToken?.payload || {};
+    const groups = idClaims["cognito:groups"] || [];
+
+    const groupRole = groups.includes("interviewer")
+      ? "interviewer"
+      : groups.includes("candidate")
+      ? "candidate"
+      : null;
+
+    const selectedRole = getSelectedLoginRole() || "candidate";
+
+    return {
+      mode: "amplify",
+      token: accessToken,
+      user: {
+        id: currentUser.userId,
+        name: idClaims.name || idClaims.email || currentUser.username || "User",
+        email: idClaims.email || "",
+        role: groupRole || selectedRole,
+      },
+    };
+  } catch {
+    return {
+      mode: "amplify",
+      user: null,
+      token: null,
+    };
+  }
 }
 
 export async function logout() {
-  localStorage.removeItem(MOCK_USER_KEY);
+  clearSelectedLoginRole();
+
+  if (amplifyEnabled) {
+    await signOut();
+  }
 }

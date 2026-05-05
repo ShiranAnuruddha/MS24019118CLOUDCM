@@ -1,19 +1,21 @@
 import { Amplify } from "aws-amplify";
 
-export const amplifyEnabled =
-  !!import.meta.env.VITE_AWS_REGION &&
-  !!import.meta.env.VITE_COGNITO_USER_POOL_ID &&
-  !!import.meta.env.VITE_COGNITO_CLIENT_ID;
+const region = import.meta.env.VITE_AWS_REGION;
+const userPoolId = import.meta.env.VITE_COGNITO_USER_POOL_ID;
+const userPoolClientId = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
+
+console.log("AMPLIFY ENV", { region, userPoolId, userPoolClientId });
+
+export const amplifyEnabled = Boolean(region && userPoolId && userPoolClientId);
 
 if (amplifyEnabled) {
   Amplify.configure({
     Auth: {
       Cognito: {
-        userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
-        userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
+        userPoolId,
+        userPoolClientId,
         loginWith: {
-          email: import.meta.env.VITE_COGNITO_LOGIN_WITH_EMAIL !== "false",
-          username: false,
+          email: true,
         },
       },
     },
