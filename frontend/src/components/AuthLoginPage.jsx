@@ -1,5 +1,19 @@
-import { Authenticator } from "@aws-amplify/ui-react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
+
+function RedirectAfterLogin({ role }) {
+  const navigate = useNavigate();
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
+
+  useEffect(() => {
+    if (authStatus === "authenticated") {
+      navigate(`/${role}/dashboard`, { replace: true });
+    }
+  }, [authStatus, navigate, role]);
+
+  return null;
+}
 
 export default function AuthLoginPage({ role }) {
   const navigate = useNavigate();
@@ -19,12 +33,7 @@ export default function AuthLoginPage({ role }) {
         </div>
 
         <Authenticator loginMechanisms={["email"]} signUpAttributes={["name"]}>
-          {({ user }) => {
-            if (user) {
-              navigate(`/${role}/dashboard`, { replace: true });
-            }
-            return null;
-          }}
+          <RedirectAfterLogin role={role} />
         </Authenticator>
       </div>
     </div>

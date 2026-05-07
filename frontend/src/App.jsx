@@ -44,11 +44,6 @@ function ProtectedRoleApp() {
       return;
     }
 
-    if (role && auth.user.role && auth.user.role !== role) {
-      navigate(`/${auth.user.role}/dashboard`, { replace: true });
-      return;
-    }
-
     setUser(auth.user);
   }
 
@@ -108,8 +103,8 @@ function ProtectedRoleApp() {
   }, [user]);
 
   function setCurrentTab(nextTab) {
-    if (!user?.role) return;
-    navigate(`/${user.role}/${nextTab}`);
+    if (!role) return;
+    navigate(`/${role}/${nextTab}`);
   }
 
   async function handleSearch(filters) {
@@ -134,7 +129,7 @@ function ProtectedRoleApp() {
       });
       setNotice("Booking created.");
       await loadAll();
-      navigate(`/${user.role}/bookings`);
+      navigate(`/${role}/bookings`);
     } catch (error) {
       setNotice(error.message);
     }
