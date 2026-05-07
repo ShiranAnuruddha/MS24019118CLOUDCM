@@ -1,51 +1,57 @@
 import { fetchAuthSession, getCurrentUser, signOut } from "aws-amplify/auth";
 import { amplifyEnabled } from "./amplify";
-
-const STORAGE_KEY = "hiresphere_mock_user";
-
-export function getMockUser() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function saveMockUser(user) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-}
-
-export function clearMockUser() {
-  localStorage.removeItem(STORAGE_KEY);
-}
+import { getSelectedLoginRole, clearSelectedLoginRole } from "./loginRole";
 
 export async function getAuthContext() {
-  if (amplifyEnabled) {
-    const session = await fetchAuthSession();
-    const authUser = await getCurrentUser();
+  if (!amplifyEnabled) {
     return {
-      mode: "amplify",
-      token: session.tokens?.accessToken?.toString() || "",
-      user: {
-        id: authUser.userId,
-        email: authUser.signInDetails?.loginId || authUser.username,
-        name: authUser.signInDetails?.loginId || authUser.username,
-        role: "candidate",
-      },
+      mode: "none",
+      user: null,
+      token: null,
     };
   }
 
-  const mockUser = getMockUser();
-  if (!mockUser) return { mode: "mock", token: "", user: null };
-  return { mode: "mock", token: "", user: mockUser };
+  try {
+    const [session, currentUser] = await Promise.all([
+      fetchAuthSession(),
+      getCurrentUser(),
+    ]);
+
+    const accessToken = session.tokens?.accessToken?.toString() || null;
+    const idClaims = session.tokens?.idToken?.payload || {};
+    const groups = idClaims["cognito:groups"] || [];
+
+    const groupRole = groups.includes("interviewer")
+      ? "interviewer"
+      : groups.includes("candidate")
+      ? "candidate"
+      : null;
+
+    const selectedRole = getSelectedLoginRole() || "candidate";
+
+    return {
+      mode: "amplify",
+      token: accessToken,
+      user: {
+        id: currentUser.userId,
+        name: idClaims.name || idClaims.email || currentUser.username || "User",
+        email: idClaims.email || "",
+        role: groupRole || selectedRole,
+      },
+    };
+  } catch {
+    return {
+      mode: "amplify",
+      user: null,
+      token: null,
+    };
+  }
 }
 
 export async function logout() {
+  clearSelectedLoginRole();
+
   if (amplifyEnabled) {
     await signOut();
-  } else {
-    clearMockUser();
   }
 }
