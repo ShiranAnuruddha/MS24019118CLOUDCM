@@ -70,20 +70,39 @@ export default function Interviewers({
   async function submitSlot(event) {
     event.preventDefault();
 
+    if (!slotForm.slot_start || !slotForm.slot_end) {
+      alert("Please select both start and end time.");
+      return;
+    }
+
+    if (new Date(slotForm.slot_end) <= new Date(slotForm.slot_start)) {
+      alert("End time must be after start time.");
+      return;
+    }
+
     await onAddSlot({
       slot_start: slotForm.slot_start,
       slot_end: slotForm.slot_end,
     });
 
-    setSlotForm({ slot_start: "", slot_end: "" });
+    setSlotForm({
+      slot_start: "",
+      slot_end: "",
+    });
   }
 
   const filtered = useMemo(() => interviewers, [interviewers]);
+
+  const canManageSlots =
+    user?.role === "interviewer" ||
+    profile?.profile_type === "interviewer" ||
+    profileForm.profile_type === "interviewer";
 
   return (
     <div className="page-grid">
       <div className="card">
         <h3>My Profile</h3>
+
         <form className="form-grid" onSubmit={submitProfile}>
           <label>
             Name
@@ -133,7 +152,9 @@ export default function Interviewers({
             Badges
             <input
               value={profileForm.specialization_badges}
-              onChange={(e) => updateProfile("specialization_badges", e.target.value)}
+              onChange={(e) =>
+                updateProfile("specialization_badges", e.target.value)
+              }
               placeholder="Java, React"
             />
           </label>
@@ -160,9 +181,10 @@ export default function Interviewers({
         </form>
       </div>
 
-      {user?.role === "interviewer" && (
+      {canManageSlots && (
         <div className="card">
           <h3>Publish Availability</h3>
+
           <form className="form-grid" onSubmit={submitSlot}>
             <label>
               Start
@@ -196,49 +218,77 @@ export default function Interviewers({
           </form>
 
           <div className="list">
-            {mySlots.map((slot) => (
-              <div className="list-item" key={slot.id}>
-                <div>
-                  <strong>{new Date(slot.slot_start).toLocaleString()}</strong>
-                  <p>{new Date(slot.slot_end).toLocaleString()}</p>
+            {mySlots?.length ? (
+              mySlots.map((slot) => (
+                <div className="list-item" key={slot.id}>
+                  <div>
+                    <strong>{new Date(slot.slot_start).toLocaleString()}</strong>
+                    <p>{new Date(slot.slot_end).toLocaleString()}</p>
+                  </div>
+
+                  <span
+                    className={slot.is_booked ? "pill danger" : "pill success"}
+                  >
+                    {slot.is_booked ? "Booked" : "Open"}
+                  </span>
                 </div>
-                <span className={slot.is_booked ? "pill danger" : "pill success"}>
-                  {slot.is_booked ? "Booked" : "Open"}
-                </span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="muted">No slots added yet.</p>
+            )}
           </div>
         </div>
       )}
 
       <div className="card span-2">
         <h3>Find Interviewers</h3>
+
         <div className="filter-row">
           <input
             placeholder="Domain"
             value={filters.domain}
-            onChange={(e) => setFilters((c) => ({ ...c, domain: e.target.value }))}
+            onChange={(e) =>
+              setFilters((current) => ({
+                ...current,
+                domain: e.target.value,
+              }))
+            }
           />
+
           <input
             placeholder="Interview Type"
             value={filters.interviewType}
             onChange={(e) =>
-              setFilters((c) => ({ ...c, interviewType: e.target.value }))
+              setFilters((current) => ({
+                ...current,
+                interviewType: e.target.value,
+              }))
             }
           />
+
           <input
             placeholder="Experience"
             value={filters.experienceLevel}
             onChange={(e) =>
-              setFilters((c) => ({ ...c, experienceLevel: e.target.value }))
+              setFilters((current) => ({
+                ...current,
+                experienceLevel: e.target.value,
+              }))
             }
           />
+
           <input
             type="number"
             placeholder="Min Rating"
             value={filters.minRating}
-            onChange={(e) => setFilters((c) => ({ ...c, minRating: e.target.value }))}
+            onChange={(e) =>
+              setFilters((current) => ({
+                ...current,
+                minRating: e.target.value,
+              }))
+            }
           />
+
           <button type="button" onClick={() => onSearch(filters)}>
             Search
           </button>
@@ -275,7 +325,8 @@ export default function Interviewers({
                           onBook({
                             interviewerId: item.user_id,
                             slotId: slot.id,
-                            interviewType: item.interview_types?.[0] || "DSA",
+                            interviewType:
+                              item.interview_types?.[0] || "DSA",
                           })
                         }
                       >
@@ -285,7 +336,9 @@ export default function Interviewers({
                   </div>
                 ))}
 
-                {!item.slots?.length && <p className="muted">No open slots</p>}
+                {!item.slots?.length && (
+                  <p className="muted">No open slots</p>
+                )}
               </div>
             </div>
           ))}

@@ -1,6 +1,20 @@
 import { fetchAuthSession, getCurrentUser, signOut } from "aws-amplify/auth";
 import { amplifyEnabled } from "./amplify";
-import { getSelectedLoginRole, clearSelectedLoginRole } from "./loginRole";
+
+function buildFriendlyName(idClaims, currentUser) {
+  const fullName = (idClaims.name || "").trim();
+  const firstLast = `${idClaims.given_name || ""} ${idClaims.family_name || ""}`.trim();
+  const emailPrefix = idClaims.email ? idClaims.email.split("@")[0] : "";
+
+  return (
+    fullName ||
+    firstLast ||
+    emailPrefix ||
+    currentUser.username ||
+    currentUser.userId ||
+    "User"
+  );
+}
 
 export async function getAuthContext() {
   if (!amplifyEnabled) {
@@ -21,22 +35,22 @@ export async function getAuthContext() {
     const idClaims = session.tokens?.idToken?.payload || {};
     const groups = idClaims["cognito:groups"] || [];
 
-    const groupRole = groups.includes("interviewer")
-      ? "interviewer"
-      : groups.includes("candidate")
-      ? "candidate"
-      : null;
-
-    const selectedRole = getSelectedLoginRole() || "candidate";
+    let role = "candidate";
+    if (groups.includes("interviewer")) {
+      role = "interviewer";
+    } else if (groups.includes("candidate")) {
+      role = "candidate";
+    }
 
     return {
       mode: "amplify",
       token: accessToken,
       user: {
         id: currentUser.userId,
-        name: idClaims.name || idClaims.email || currentUser.username || "User",
+        name: buildFriendlyName(idClaims, currentUser),
         email: idClaims.email || "",
-        role: groupRole || selectedRole,
+        role,
+        groups,
       },
     };
   } catch {
@@ -49,8 +63,6 @@ export async function getAuthContext() {
 }
 
 export async function logout() {
-  clearSelectedLoginRole();
-
   if (amplifyEnabled) {
     await signOut();
   }
