@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 import { amplifyEnabled } from "./lib/amplify";
 import { api } from "./lib/api";
 import { getAuthContext, logout } from "./lib/auth";
@@ -13,12 +20,19 @@ import Submissions from "./pages/Submissions";
 import Messages from "./pages/Messages";
 import Reports from "./pages/Reports";
 
-const VALID_TABS = ["dashboard", "interviewers", "bookings", "submissions", "messages", "reports"];
+const VALID_TABS = [
+  "dashboard",
+  "interviewers",
+  "bookings",
+  "submissions",
+  "messages",
+  "reports",
+];
 
-function ProtectedRoleApp() {
+function ProtectedApp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role } = useParams();
+  const { tab } = useParams();
 
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -32,9 +46,8 @@ function ProtectedRoleApp() {
   const [notice, setNotice] = useState("");
 
   const currentTab = useMemo(() => {
-    const part = location.pathname.split("/")[2] || "dashboard";
-    return VALID_TABS.includes(part) ? part : "dashboard";
-  }, [location.pathname]);
+    return VALID_TABS.includes(tab) ? tab : "dashboard";
+  }, [tab]);
 
   async function refreshUser() {
     const auth = await getAuthContext();
@@ -94,7 +107,7 @@ function ProtectedRoleApp() {
 
   useEffect(() => {
     refreshUser();
-  }, [role]);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -103,18 +116,19 @@ function ProtectedRoleApp() {
   }, [user]);
 
   function setCurrentTab(nextTab) {
-    if (!role) return;
-    navigate(`/${role}/${nextTab}`);
+    navigate(`/app/${nextTab}`);
   }
 
   async function handleSearch(filters) {
     try {
       const params = new URLSearchParams();
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "" && value !== null && value !== undefined) {
           params.set(key, value);
         }
       });
+
       setInterviewers(await api(`/profiles/interviewers?${params.toString()}`));
     } catch (error) {
       setNotice(error.message);
@@ -129,7 +143,7 @@ function ProtectedRoleApp() {
       });
       setNotice("Booking created.");
       await loadAll();
-      navigate(`/${role}/bookings`);
+      navigate("/app/bookings");
     } catch (error) {
       setNotice(error.message);
     }
@@ -190,6 +204,7 @@ function ProtectedRoleApp() {
   async function handleSubmission(form) {
     try {
       const data = new FormData();
+
       if (form.bookingId) data.append("bookingId", form.bookingId);
       if (form.githubUrl) data.append("githubUrl", form.githubUrl);
       if (form.notes) data.append("notes", form.notes);
@@ -222,6 +237,7 @@ function ProtectedRoleApp() {
 
   async function handleSelectBooking(bookingId) {
     setSelectedBookingId(bookingId);
+
     try {
       setThreads(await api(`/messages/threads/${bookingId}`));
     } catch (error) {
@@ -264,7 +280,6 @@ function ProtectedRoleApp() {
     switch (currentTab) {
       case "dashboard":
         return <Dashboard profile={profile} bookings={bookings} reports={reports} />;
-
       case "interviewers":
         return (
           <Interviewers
@@ -278,7 +293,6 @@ function ProtectedRoleApp() {
             profile={profile}
           />
         );
-
       case "bookings":
         return (
           <Bookings
@@ -288,7 +302,6 @@ function ProtectedRoleApp() {
             onUpdateStatus={handleUpdateStatus}
           />
         );
-
       case "submissions":
         return (
           <Submissions
@@ -298,7 +311,6 @@ function ProtectedRoleApp() {
             user={user}
           />
         );
-
       case "messages":
         return (
           <Messages
@@ -309,7 +321,6 @@ function ProtectedRoleApp() {
             onSend={handleSendMessage}
           />
         );
-
       case "reports":
         return (
           <Reports
@@ -319,7 +330,6 @@ function ProtectedRoleApp() {
             onCreate={handleCreateReport}
           />
         );
-
       default:
         return <Dashboard profile={profile} bookings={bookings} reports={reports} />;
     }
@@ -359,8 +369,8 @@ export default function App() {
       <Route path="/login" element={<AuthLanding />} />
       <Route path="/login/interviewer" element={<AuthLoginPage role="interviewer" />} />
       <Route path="/login/candidate" element={<AuthLoginPage role="candidate" />} />
-      <Route path="/interviewer/:tab" element={<ProtectedRoleApp />} />
-      <Route path="/candidate/:tab" element={<ProtectedRoleApp />} />
+      <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+      <Route path="/app/:tab" element={<ProtectedApp />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
